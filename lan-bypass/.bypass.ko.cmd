@@ -1,0 +1,1 @@
+cmd_/home/My_project/nsm3010-1123/driver/lan-bypass/bypass.ko := ld -m elf_i386 -m elf_i386 -r -o /home/My_project/nsm3010-1123/driver/lan-bypass/bypass.ko /home/My_project/nsm3010-1123/driver/lan-bypass/bypass.o /home/My_project/nsm3010-1123/driver/lan-bypass/bypass.mod.o

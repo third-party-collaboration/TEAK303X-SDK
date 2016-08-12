@@ -1,0 +1,1 @@
+cmd_/home/My_project/oak3030/watchdog/driver-V1.1/ite8712-watchdog.ko := ld -m elf_i386 -m elf_i386 -r -o /home/My_project/oak3030/watchdog/driver-V1.1/ite8712-watchdog.ko /home/My_project/oak3030/watchdog/driver-V1.1/ite8712-watchdog.o /home/My_project/oak3030/watchdog/driver-V1.1/ite8712-watchdog.mod.o

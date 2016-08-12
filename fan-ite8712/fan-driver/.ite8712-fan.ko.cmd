@@ -1,0 +1,1 @@
+cmd_/home/My_project/teak3030/fan-ite8712/fan-driver/ite8712-fan.ko := ld -m elf_i386 -m elf_i386 -r -o /home/My_project/teak3030/fan-ite8712/fan-driver/ite8712-fan.ko /home/My_project/teak3030/fan-ite8712/fan-driver/ite8712-fan.o /home/My_project/teak3030/fan-ite8712/fan-driver/ite8712-fan.mod.o

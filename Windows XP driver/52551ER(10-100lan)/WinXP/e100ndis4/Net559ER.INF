@@ -1,0 +1,239 @@
+;*******************************************************************************
+;*                                                                            **
+;*                     I N T E L   P R O P R I E T A R Y                      **
+;*                                                                            **
+;*   COPYRIGHT (c) 2002 BY INTEL CORPORATION. ALL RIGHTS RESERVED.  NO        **
+;*   PART  OF  THIS  PROGRAM OR PUBLICATION MAY BE REPRODUCED, TRANSMITTED,   **
+;*   TRANSCRIBED, STORED IN A RETRIEVAL  SYSTEM,  OR  TRANSLATED  INTO  ANY   **
+;*   LANGUAGE OR COMPUTER LANGUAGE IN ANY FORM OR BY ANY MEANS, ELECTRONIC,   **
+;*   MECHANICAL, MAGNETIC, OPTICAL, CHEMICAL, MANUAL, OR OTHERWISE, WITHOUT   **
+;*   THE PRIOR WRITTEN PERMISSION OF :                                        **
+;*                                                                            **
+;*                             INTEL CORPORATION                              **
+;*                                                                            **
+;*                          2200 MISSION COLLEGE BLVD                         **
+;*                                                                            **
+;*                     SANTA CLARA, CALIFORNIA 95052-8119                     **
+;*                                                                            **
+;*******************************************************************************
+;
+;*******************************************************************************
+; NET559ER.INF
+; $Revision: 9 $
+;
+; Intel 8255xER (Basic) Adapters
+; PnP install script for Windows 9x and Windows 2000
+
+[Version]
+Signature   = "$Chicago$"
+Compatible  = 1
+Class       = Net
+ClassGUID   = {4d36e972-e325-11ce-bfc1-08002be10318}
+Provider    = %V_INTEL%
+DriverVer   = 05/27/1999,1.0.0.1
+
+[Manufacturer]
+%V_INTEL%   = Intel
+
+[Intel]
+; DisplayName                Section        DeviceID
+; -----------                -------        --------
+%PCIE100E.DeviceDesc%     = E100E.ndi,    PCI\VEN_8086&DEV_1209           ; D101ER PCI Adapter (Basic)
+%PCIE100B.DeviceDesc%     = E100E.ndi,    PCI\VEN_8086&DEV_1229&REV_08    ; Intel 8255x-based PCI Ethernet Adapter (10/100)  (D101M)
+%PCIE100B.DeviceDesc%     = E100E.ndi,    PCI\VEN_8086&DEV_1229&REV_0F    ; Intel 8255x-based PCI Ethernet Adapter (10/100)  (D101M)
+%PCIE100B.DeviceDesc%     = E100E.ndi,    PCI\VEN_8086&DEV_1229&REV_10    ; Intel 8255x-based PCI Ethernet Adapter (10/100)  (D101M)
+%PCIE100PLUS.DeviceDesc%  = E100E.ndi,    PCI\VEN_8086&DEV_1229&REV_09    ; Intel(R) PRO/100+ PCI Adapter (D101S)
+
+;----------------------------------------------------------------------------
+; D101ER PCI Adapter (E100E)
+; 
+[E100E.ndi]
+DriverVer       = 05/27/1999,1.0.0.1
+AddReg          = E100E.reg, E100E.ndi.reg
+CopyFiles       = E100E.CopyFiles, E100E.Inf.CopyFiles
+
+[E100E.ndi.NT]
+Characteristics = 0x84 ; NCF_HAS_UI | NCF_PHYSICAL
+BusType         = 5    ; PCI
+AddReg          = E100E.reg, E100E.ndi.NT.reg, ER8021PQTag.ndi.NT.reg
+CopyFiles       = E100E_NT.CopyFiles, E100E.Inf.CopyFiles
+
+[E100E.ndi.NT.Services]
+AddService = E100E, 2, E100E.Service, common.EventLog
+
+;----------------------------------------------------------------------------
+; Common parameters
+; 
+[E100E.reg]
+HKR, ,                          AutoPolarity,            0, "2"
+HKR, ,                          Congest,                 0, "0"
+HKR, ,                          Coalesce,                0, "0"
+HKR, ,                          Connector,               0, "0"
+HKR, ,                          EQUOFF,                  0, "0"
+HKR, ,                          EnableSelfTest,          0, "1"
+HKR, ,                          Environment,             0, "0"
+HKR, ,                          ExtremeCacheAlignment,   0, "0"
+HKR, ,                          MCWA,                    0, "2"
+HKR, ,                          MWIEnable,               0, "1"
+HKR, ,                          NumCoalesce,             0, "8"
+HKR, ,                          NumTbdPerTcb,            0, "1"
+HKR, ,                          PhyAddress,              0, "255"
+HKR, ,                          RxDmaCount,              0, "0"
+HKR, ,                          RxFifo,                  0, "8"
+HKR, ,                          TxDmaCount,              0, "0"
+HKR, ,                          TxFifo,                  0, "8"
+HKR, ,                          UnderrunRetry,           0, "1"
+HKR, ,                          UseIo,                   0, "2"
+HKR, ,                          WaitAfterWin,            0, "0"
+
+HKR,Ndi\Params\ForceDpx,        ParamDesc,               0, "Duplex"
+HKR,Ndi\Params\ForceDpx,        Type,                    0, "enum"
+HKR,Ndi\Params\ForceDpx,        Default,                 0, "0"
+HKR,Ndi\Params\ForceDpx,        Flag,                    1, 20,00,00,00
+HKR,Ndi\Params\ForceDpx\Enum,   "0",                     0, "Auto Detect"
+HKR,Ndi\Params\ForceDpx\Enum,   "1",                     0, "Half-Duplex"
+HKR,Ndi\Params\ForceDpx\Enum,   "2",                     0, "Full-Duplex"
+
+HKR,Ndi\Params\Speed,           ParamDesc,               0, "Speed"
+HKR,Ndi\Params\Speed,           Type,                    0, "enum"
+HKR,Ndi\Params\Speed,           Default,                 0, "0"
+HKR,Ndi\Params\Speed,           Flag,                    1, 30,00,00,00
+HKR,Ndi\Params\Speed\Enum,      "0",                     0, "Auto Detect"
+HKR,Ndi\Params\Speed\Enum,      "10",                    0, "10 Mbps"
+HKR,Ndi\Params\Speed\Enum,      "100",                   0, "100 Mbps"
+
+HKR,Ndi\Params\NumRfd,          ParamDesc,               0, "Receive Buffers"
+HKR,Ndi\Params\NumRfd,          Type,                    0, "int"
+HKR,Ndi\Params\NumRfd,          Default,                 0, "16"
+HKR,Ndi\Params\NumRfd,          Flag,                    1, 20,00,00,00
+HKR,Ndi\Params\NumRfd,          Min,                     0, "1"
+HKR,Ndi\Params\NumRfd,          Max,                     0, "1024"
+HKR,Ndi\Params\NumRfd,          Step,                    0, "1"
+HKR,Ndi\Params\NumRfd,          Base,                    0, "10"
+
+HKR,Ndi\Params\NumTcb,          ParamDesc,               0, "Transmit Control Blocks"
+HKR,Ndi\Params\NumTcb,          Type,                    0, "int"
+HKR,Ndi\Params\NumTcb,          Default,                 0, "8"
+HKR,Ndi\Params\NumTcb,          Flag,                    1, 20,00,00,00
+HKR,Ndi\Params\NumTcb,          Min,                     0, "1"
+HKR,Ndi\Params\NumTcb,          Max,                     0, "64"
+HKR,Ndi\Params\NumTcb,          Step,                    0, "1"
+HKR,Ndi\Params\NumTcb,          Base,                    0, "10"
+
+HKR,PROSetNdi\Params\NetworkAddress,  ParamDesc,         0, "Locally Administered Address"
+HKR,PROSetNdi\Params\NetworkAddress,  Type,              0, "edit"
+HKR,PROSetNdi\Params\NetworkAddress,  Default,           0, ""
+HKR,PROSetNdi\Params\NetworkAddress,  Flag,              1, 20,00,00,00
+HKR,PROSetNdi\Params\NetworkAddress,  Base,              0, "16"
+
+;----------------------------------------------------------------------------
+; Win 9x NDI object registration
+; 
+[E100E.ndi.reg]
+HKR,,                          DevLoader,        0, "*ndis"
+HKR,,                          DeviceVxDs,       0, "e100ent.sys"
+HKR,,                          EnumPropPages,    0, "netdi.dll,EnumPropPages"
+HKR,NDIS,                      LogDriverName,    0, "E100E-100"
+HKR,NDIS,                      MajorNdisVersion, 1, 03
+HKR,NDIS,                      MinorNdisVersion, 1, 0A
+HKR,Ndi,                       DeviceID,         0, "PCI\VEN_8086&DEV_1209"
+HKR,Ndi\Interfaces,            DefUpper,         0, "ndis3"
+HKR,Ndi\Interfaces,            DefLower,         0, "ethernet"
+HKR,Ndi\Interfaces,            UpperRange,       0, "ndis3"
+HKR,Ndi\Interfaces,            LowerRange,       0, "ethernet"
+HKR,Ndi\Install,               ndis4,            0, "E100E.ndis"
+
+;----------------------------------------------------------------------------
+; NT NDI object registration
+; 
+[E100E.ndi.NT.reg]
+HKR,Ndi\Interfaces,            UpperRange,       0, "ndis4,ndis5"
+HKR,Ndi\Interfaces,            LowerRange,       0, "ethernet"
+HKR,Ndi,                       Service,          0, "E100E"
+
+[ER8021PQTag.ndi.NT.reg]
+HKR,Ndi\Params\IpTosbasedPriorityMode,        ParamDesc,               0, "IPv4* Priority Tag"
+HKR,Ndi\Params\IpTosbasedPriorityMode,        Type,                    0, "enum"
+HKR,Ndi\Params\IpTosbasedPriorityMode,        Default,                 0, "0"
+HKR,Ndi\Params\IpTosbasedPriorityMode\Enum,   "0",                     0, "Disabled"
+HKR,Ndi\Params\IpTosbasedPriorityMode\Enum,   "1",                     0, "Enabled"
+
+HKR,Ndi\Params\NonAnsSingleVlanId,        ParamDesc,               0, "IPv4* VLAN Tag ID"
+HKR,Ndi\Params\NonAnsSingleVlanId,        Type,                    0, "int"
+HKR,Ndi\Params\NonAnsSingleVlanId,        Base,                    0, "10"
+HKR,Ndi\Params\NonAnsSingleVlanId,        Default,                 0, "0"
+HKR,Ndi\Params\NonAnsSingleVlanId,        Step,                    0, "1"
+HKR,Ndi\Params\NonAnsSingleVlanId,        Min,                     0, "0"
+HKR,Ndi\Params\NonAnsSingleVlanId,        Max,                     0, "4095"
+
+;----------------------------------------------------------------------------
+; NT Service registration
+; 
+[E100E.Service]
+DisplayName     = %E100E.Service.DispName%
+ServiceType     = 1 ;%SERVICE_KERNEL_DRIVER%
+StartType       = 3 ;%SERVICE_DEMAND_START%
+ErrorControl    = 1 ;%SERVICE_ERROR_NORMAL%
+ServiceBinary   = %12%\e100ent.sys
+LoadOrderGroup  = NDIS
+AddReg          = TextModeFlags.reg
+
+
+;-----------------------------------------------------------------------------
+; NT Common base for all drivers for Eventlog and TextModeFlags
+;
+[common.EventLog]
+AddReg = common.AddEventLog.reg
+
+[common.AddEventLog.reg]
+HKR, , EventMessageFile, 0x00020000, "%%SystemRoot%%\System32\netevent.dll"
+HKR, , TypesSupported,   0x00010001, 7
+
+[TextModeFlags.reg]
+HKR, , TextModeFlags,    0x00010001, 0x0001
+
+;----------------------------------------------------------------------------
+; Driver Install Sections
+; 
+[E100E.ndis]
+
+;----------------------------------------------------------------------------
+; Copy files
+; 
+[DestinationDirs]
+DefaultDestDir            = 11
+E100E_NT.CopyFiles        = 12
+E100E.Inf.CopyFiles       = 17
+
+[SourceDisksNames]
+1 = %DISKNAME%,,,
+
+[SourceDisksFiles]
+E100ENT.sys = 1
+
+[E100E.CopyFiles]
+E100ENT.sys,,,2
+
+[E100E_NT.CopyFiles]
+E100ENT.sys,,,2
+
+[E100E.Inf.CopyFiles]
+Net559ER.INF,,,2
+
+;----------------------------------------------------------------------------
+; Localizable Strings
+; 
+[Strings]
+; Vendors
+V_INTEL="Intel"
+
+; Source disk name
+DISKNAME="Intel(R) 8255xER PCI Adapter CD-ROM or floppy disk"
+
+; Service Description
+E100E.Service.DispName    = "E100E"
+
+; Device descriptions
+PCIE100E.DeviceDesc       = "Intel(R) 8255xER PCI Adapter"
+PCIE100B.DeviceDesc       = "Intel 8255x-based PCI Ethernet Adapter (10/100)"
+PCIE100PLUS.DeviceDesc    = "Intel(R) PRO/100+ PCI Adapter"

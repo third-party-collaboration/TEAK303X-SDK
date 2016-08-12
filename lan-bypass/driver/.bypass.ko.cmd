@@ -1,0 +1,1 @@
+cmd_/home/My_project/oak3030/lan-bypass/driver/bypass.ko := ld -m elf_i386 -m elf_i386 -r -o /home/My_project/oak3030/lan-bypass/driver/bypass.ko /home/My_project/oak3030/lan-bypass/driver/bypass.o /home/My_project/oak3030/lan-bypass/driver/bypass.mod.o

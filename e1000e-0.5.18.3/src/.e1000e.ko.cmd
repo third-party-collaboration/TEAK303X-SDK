@@ -1,0 +1,1 @@
+cmd_/home/My_project/oak3030/e1000e-0.5.18.3/src/e1000e.ko := ld -m elf_i386 -m elf_i386 -r -o /home/My_project/oak3030/e1000e-0.5.18.3/src/e1000e.ko /home/My_project/oak3030/e1000e-0.5.18.3/src/e1000e.o /home/My_project/oak3030/e1000e-0.5.18.3/src/e1000e.mod.o

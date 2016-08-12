@@ -1,0 +1,731 @@
+/* lcm-net.c - A lcm protocol program is to communicate with the lcm controller in LCM Board B044
+    via serial port. 
+    All rights are reserved by ARinfotek Inc., Taiwan
+*/
+
+/* x86 version -- uncomment the following statement */
+#define UART_DEVICE                 "/dev/ttyS1"
+//#define UART_DEVICE                 "/dev/ttyUSB0"
+/* device version -- uncomment the following statement */
+//#define UART_DEVICE                 "/dev/lcm"
+#define UART_IO_FLAGS               (O_RDWR|O_NOCTTY|O_NONBLOCK) 
+//#define UART_IO_FLAGS               (O_RDWR|O_NONBLOCK) 
+
+#include <stdio.h>
+#include <errno.h>				
+#include <sys/types.h>			
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>	
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/signal.h>
+
+#define 	CONNECT 		0x05
+#define	DISCONNECT	0x06
+#define	ALARM		0x07
+#define	WRITE		0x08
+#define 	PRINT1		0x09
+#define	PRINT2		0x0A
+#define 	ACK		    	0x0B
+#define 	NACK			0x0C
+#define 	CONFIRM		0x0D
+#define 	RESET		0x0E
+
+#define	LCM_CLEAR		0x21
+#define	LCM_HOME		0x22
+#define   LCM_CURSOR_SHIFT_R 0x23
+#define   LCM_CURSOR_SHIFT_L 0x24
+#define   BACKLIGHT_ON   0x25
+#define   BACKLIGHT_OFF  0x26
+#define   LCM_LINE2      0x27
+#define   LCM_DISPLAY_SHIFT_R 0x28
+#define   LCM_DISPLAY_SHIFT_L 0x29
+#define   LCM_CURSOR_ON  0x2A
+#define   LCM_CURSOR_OFF 0x2B
+#define   LCM_CURSOR_BLINK 0x2C
+#define   LCM_DISPLAY_ON 0x2D
+#define   LCM_DISPLAY_OFF 0x2E
+
+
+#define 	FRAME_MASK	0xFF
+#define 	TIMEOUT		2
+#define 	ESC         	0x1B
+
+#define	KEY1			0x31
+#define	KEY2			0x32
+#define	KEY3			0x33
+#define	KEY4			0x34
+#define   KEY12          0x35
+#define   KEY13          0x36
+#define   KEY14          0x37
+#define   KEY23          0x38
+#define   KEY24          0x39
+#define   KEY34          0x3A
+
+#define	RXFRAME_SIZE		22
+#define	TXFRAME_SIZE		32
+
+#define FALSE 0
+#define TRUE 1
+        
+//volatile int STOP=FALSE; 
+void signal_handler_IO (int status);   /* definition of signal handler */
+int wait_flag=TRUE;                    /* TRUE while no signal received */
+
+static char		 	Mode=0;		// 0:IDLE, 1:command 2: connected
+static unsigned char    	dataframe[RXFRAME_SIZE];
+static unsigned char	txframe[TXFRAME_SIZE];
+static int reEntry= 0;
+
+static int fd= -1;					// device lcm open file descriptor
+#define BAUDRATE B38400
+
+
+void lcm_fun_key(unsigned char c);
+#define MAX_INBUF_SIZE	128
+
+void com_setting(int fd) {
+struct termios oldtio;
+
+	tcgetattr(fd,&oldtio);
+	oldtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+	oldtio.c_iflag = IGNPAR;   // IGNPAR | ICRNL;
+	oldtio.c_oflag = 0;
+  	oldtio.c_lflag = 0; 
+  	oldtio.c_cc[VMIN]= 0; 
+  	oldtio.c_cc[VTIME]= 0; 
+
+	tcflush(fd, TCIFLUSH);   
+	tcsetattr(fd,TCSANOW,&oldtio);  
+}
+/***************************************************************************
+* signal handler. sets wait_flag to FALSE, to indicate above loop that     *
+* characters have been received.                                           *
+***************************************************************************/
+void signal_handler_IO (int status)
+{
+    printf("received SIGIO signal.\n");
+    wait_flag = FALSE;
+}
+
+void device_io_set(int fd)
+{
+       struct sigaction saio;           /* definition of signal action */
+  
+     /* install the signal handler before making the device asynchronous */
+        saio.sa_handler = signal_handler_IO;
+        //saio.sa_mask = 0;
+        saio.sa_flags = 0; //SA_NOMASK;
+        saio.sa_restorer = NULL;
+        sigaction(SIGIO,&saio,NULL);
+          
+        /* allow the process to receive SIGIO */
+        fcntl(fd, F_SETOWN, getpid());
+        /* Make the file descriptor asynchronous (the manual page says only 
+           O_APPEND and O_NONBLOCK, will work with F_SETFL...) */
+        fcntl(fd, F_SETFL, FASYNC);
+}
+
+int lcm_open(void)
+{
+	if(fd < 0) {
+		fd= open(UART_DEVICE, UART_IO_FLAGS);
+		// Start the Net
+		if(fd < 0) {
+			printf("lcm-ap:  Can not open device driver\n");
+			return -1;	
+		}
+		device_io_set(fd);
+		com_setting(fd);
+        printf("lcm-ap: open success fd=%X\n", fd);
+		return 0;
+	}
+	else
+	  return -1;
+}
+
+int lcm_close(void)
+{
+	if(fd > 0) {
+		close(fd);
+		return 0;
+	}
+	return -1;
+
+}
+
+/* This routine is used to transmit a char to the serial port. */
+char put_char(unsigned char c) {
+	ssize_t ret;
+
+	do {	
+		ret= write(fd, (void *)&c, 1); 		// put char into buffer
+		if(ret < 0)
+		    usleep(30);                    // 100 usec delay
+	}while(ret < 0);
+	return 1;
+}
+/* This routine is used to transmit a data string to the serial port. */
+int  put_charString(unsigned char *s, int size) {
+	ssize_t ret;
+     int t_size= size;
+
+	do {	
+		ret= write(fd, (void *)s, size); 		// put char into buffer
+		//printf("lcm-net: send data ret=%d left=%d\n", ret, size);
+		if(ret < 0)
+		    usleep(100);                        // 100 usec delay
+		else {
+		  if(ret <= size) {
+		     size -= ret;
+			 s += ret;
+               //printf("lcm-net: left=%d\n", size);
+		  }
+          }
+     } while (size > 0);
+ 	return t_size;
+}
+
+/* Read a char from the serial port and return the size and data */
+get_char(unsigned char *c) {
+    return read(fd, (void *)c, 1);
+}
+
+get_charString(unsigned char *s) {
+    return read(fd, (void *)s, MAX_INBUF_SIZE);
+}
+static int ByteCRC16(int value, int crcin)
+{
+	int k = (((crcin >> 8) ^ value) & 255) << 8;
+   	int crc = 0;
+   	int bits = 8;
+   	do {
+   		if (( crc ^ k ) & 0x8000)
+   			crc = (crc << 1) ^ 0x1021;
+   		else
+    		crc <<= 1;
+    	k <<= 1;
+   	} while (--bits);
+   	return ((crcin << 8) ^ crc);
+}
+
+static unsigned short CalcCRC16Bytes(unsigned int count, unsigned char *buffer) 
+{
+	int crc = 0;
+   do {
+	int value = *buffer++;
+	crc = ByteCRC16(value, crc);
+   } while (--count);
+   return crc;
+}
+
+
+static void set_txframe(void)
+{
+	txframe[0]= FRAME_MASK;
+	txframe[1]= WRITE;
+	txframe[2]= 0x01;			// data length
+	txframe[3]= 0;				// data length-2
+	txframe[4]= 0;				// key
+	txframe[5]= 0;				// checksum-1
+	txframe[6]= 0;				// checksum-2
+	txframe[7]= 0;
+}
+static void lcm_sw_init(void) {
+	Mode= 0;				// System current mode 0: IDLE
+
+	/* initialize the tx frame data */
+	printf("lcm: soft init\n");
+	set_txframe();
+}
+
+/* Transmit a packetized command frame to remote site */
+static void send_cmd_frame(unsigned char cmd) {
+    unsigned char cmd_buf[3];
+	cmd_buf[0]= FRAME_MASK;
+	cmd_buf[1]= cmd;
+	cmd_buf[2]= FRAME_MASK;
+	put_charString(cmd_buf, 3);
+}
+
+/* Transmit a packetized data frame to remote site */
+static void send_data_frame(unsigned char cmd, unsigned char *send_data, int length) {
+	unsigned short crc;
+	int i, j, k;
+	unsigned char c;
+
+	i= 4;
+	j= 0;
+	crc= 0;
+
+	txframe[0]= FRAME_MASK;
+  	txframe[1]= cmd;
+	crc= ByteCRC16((int)cmd, crc);
+	txframe[2]= (unsigned char)(length >> 8) & 0xFF;
+	crc= ByteCRC16((int)txframe[2], crc);
+	txframe[3]= (unsigned char)(length & 0xFF);
+	crc= ByteCRC16((int)txframe[3], crc);
+
+	while(j < length) {
+	    if((*(send_data+j)==0xFF)||(*(send_data+j)==ESC))
+		      txframe[i++]= ESC;
+	    txframe[i++]= *(send_data+j);
+		crc= ByteCRC16((int)(*(send_data+j)), crc);
+		j++;
+	}
+	
+	c= (unsigned char)((crc >> 8) & 0xFF);
+	if((c==0xFF)||(c==ESC))
+	  txframe[i++]= ESC;
+  	txframe[i++]= c;
+	
+	c= (unsigned char)(crc & 0xFF);
+	if((c==0xFF)||(c==ESC))
+	  txframe[i++]= ESC;
+	txframe[i++]= c;
+	txframe[i++]= FRAME_MASK;           // append frame mask to tail
+	j= 0;
+
+	while( i > 0) {
+		k=put_charString((unsigned char *)(txframe+j), i);
+		i -= k;
+		j += k;
+	}
+}
+
+/* parse data frame and response it */
+static void do_frame_analysis(unsigned char *buf, int size) {
+   //char i;
+
+
+   if(Mode != 0x02) {
+	   send_cmd_frame(NACK); // bad state
+	   //printf("Bad frame and NACK sent\n");
+	   return;
+   }
+	/* check the CRC value */
+	if(CalcCRC16Bytes(size, buf) ==0){
+	   //send_cmd_frame(ACK);
+	   //printf("Rx data OK\n");
+	}
+	else {
+	   send_cmd_frame(NACK); 				// bad state
+	   //printf("Rx bad data\n");
+	}
+
+	  switch(*buf) {
+		case WRITE:	//  Get Key 
+			printf("write length=%02X Function Code=%02X\n", *(unsigned short *)(buf+1), *(buf+3));
+			lcm_fun_key(*(buf+3));
+			break;
+		default:
+			printf("bad data frame ignored\n");
+			break;
+	   }
+}
+
+/* do command function except write, print1, print2 */
+static void do_cmd_action(unsigned char c) {
+	 if(Mode != 0x02) {		// Check whether it is in IDLE mode
+		switch(c) {
+		case CONNECT:
+			Mode= 0x01;
+			send_cmd_frame(ACK);		// tx command ACK
+			printf("Connecting and sent ACK\n");
+			break;
+		case ACK:
+			send_cmd_frame(CONFIRM);	// command ack
+			Mode= 0x02;
+			printf("ACK; connected to confirm Mode=%d\n", Mode);
+	    	break;
+		case NACK:
+			send_cmd_frame(CONFIRM);	// command ack
+			printf("NACK\n");
+			Mode= 0;
+	    	break;
+		case CONFIRM:			// confirm signal
+			printf("Confirm connection\n");
+			Mode= 0x02;
+			break;
+		case RESET:			// reset signal
+			lcm_sw_init();
+			//put_char(FRAME_MASK);		// put idle code out
+			//put_char(FRAME_MASK);
+			send_cmd_frame(CONNECT);
+          Mode= 1;
+			printf("Reset\n");
+			printf("lcm-net: Send CONNECT\n");
+			break;
+		default:
+			send_cmd_frame(NACK);		// tx bad command
+			//printf("NACK sent\n");
+			Mode= 0;
+			break;
+		}
+	 }	
+	else
+	 switch(c) {
+		case ACK:						// ACK signal
+			send_cmd_frame(CONFIRM);	// command ack
+			printf("ACK\n");
+			//Mode= 0;
+			break;
+		case NACK:						// NACK signal
+			//send_cmd_frame(CONFIRM);	// command ack
+			printf("NACK\n");
+			break;
+		case CONFIRM:					// confirm signal
+			printf("Confirm, Mode=%d\n", Mode);
+			break;
+		case CONNECT:					// connect command
+		 	send_cmd_frame(NACK);		// tx bad command
+			printf("Connect\n");
+			break;
+		case DISCONNECT:				// disconnect command
+			//Mode= 0;
+			send_cmd_frame(ACK);		// tx command ACK
+			printf("Disconnect\n");
+			break;
+		case RESET:						// reset signal
+			lcm_sw_init();
+			//put_char(FRAME_MASK);		// put idle code out
+			//put_char(FRAME_MASK);
+			send_cmd_frame(CONNECT);
+			//ModeTimes= 0;
+			printf("Reset 2\n");
+			printf("lcm-net: Send CONNECT\n");
+			break;
+		default:
+			//printf("Bad Frame skipped\n");
+			break;
+	}
+}
+
+void lcm_fun_key(unsigned char c)
+{
+
+	switch (c ) {
+	case KEY1:
+			printf("key1=%X\n", c);
+		  break;
+	case KEY2:
+			printf("key2=%X\n", c);
+		  break;
+	case KEY3:
+			printf("key3=%X\n", c);
+		  break;
+	case KEY4:
+			printf("key4=%X\n", c);
+		  break;
+	case KEY12:
+			printf("key12=%X\n", c);
+		  break;
+	case KEY13:
+			printf("key13=%X\n", c);
+		  break;
+	case KEY14:
+			printf("key14=%X\n", c);
+		  break;
+	case KEY23:
+			printf("key23=%X\n", c);
+		  break;
+	case KEY24:
+			printf("key24=%X\n", c);
+		  break;
+	case KEY34:
+			printf("key34=%X\n", c);
+		  break;
+	default:
+		  break;
+	}
+	fflush(NULL);
+     // The following for debug test
+//     send_data_frame(WRITE, &c, 1);
+   
+}
+void lcm_clear(void)
+{
+	if(Mode == 2)
+		send_cmd_frame(LCM_CLEAR);
+}
+
+void lcm_return_home(void)
+{
+	if(Mode == 2)
+		send_cmd_frame(LCM_HOME);
+}
+
+void lcm_move_line2(void)
+{
+	if(Mode == 2)
+		send_cmd_frame(LCM_LINE2);
+}
+void lcm_print_msg1(unsigned char *s)
+{
+	unsigned short length;
+	if(Mode == 2) {
+		length= strlen((const char *)s);
+		if (length == 0) return;
+   		send_data_frame(PRINT1, s, length);
+	}
+}
+void lcm_print_msg2(unsigned char *s)
+{
+	unsigned short length;
+	if(Mode == 2) {
+		length= strlen((const char *)s);
+		if (length == 0) return;
+   	 	send_data_frame(PRINT2, s, length);
+	}
+}
+void lcm_backlight(unsigned char status)
+{
+	if(Mode == 2) {
+        if(status)
+	    	send_cmd_frame(BACKLIGHT_ON);
+        else
+		send_cmd_frame(BACKLIGHT_OFF);
+     }
+}
+
+check_connect_status()
+{
+    if(Mode == 0) {
+        send_cmd_frame(CONNECT);
+        //printf("timer issues cmd CONNECT\n");
+	   Mode= 1;
+     } else
+       if(Mode == 1) 
+          Mode= 0;
+}
+lcm_cursor_shift_right(int i)
+{
+     int j;
+	if(Mode == 2) {
+          for(j=0; j < i; j++) {
+             send_cmd_frame(LCM_CURSOR_SHIFT_R);
+             usleep(200);
+          }
+     }
+}
+
+lcm_cursor_shift_left(int i)
+{
+     int j;
+   	if(Mode == 2) {
+          for(j=0; j < i; j++) {
+             send_cmd_frame(LCM_CURSOR_SHIFT_L);
+             usleep(200);
+          }
+     }
+}
+lcm_display_shift_right(int i)
+{
+     int j;
+	if(Mode == 2) {
+          for(j=0; j < i; j++) {
+             send_cmd_frame(LCM_DISPLAY_SHIFT_R);
+             usleep(200);
+          }
+     }
+}
+lcm_display_shift_left(int i)
+{
+     int j;
+	if(Mode == 2) {
+          for(j=0; j < i; j++) {
+             send_cmd_frame(LCM_DISPLAY_SHIFT_L);
+             usleep(200);
+          }
+     }
+}
+
+void lcm_cursor_on(void)
+{
+	if(Mode == 2)
+		send_cmd_frame(LCM_CURSOR_ON);
+}
+void lcm_cursor_off(void)
+{
+	if(Mode == 2)
+		send_cmd_frame(LCM_CURSOR_OFF);
+}
+void lcm_cursor_blink(void)
+{
+	if(Mode == 2)
+		send_cmd_frame(LCM_CURSOR_BLINK);
+}
+
+void lcm_display_on(void)
+{
+	if(Mode == 2)
+		send_cmd_frame(LCM_DISPLAY_ON);
+}
+void lcm_display_off(void)
+{
+	if(Mode == 2)
+		send_cmd_frame(LCM_DISPLAY_OFF);
+}
+
+/* Start the interrupt-driven serial I/O */
+main(void){
+	unsigned char c;
+	int  datafound=0;
+	int  length, ret;
+	int quit;
+	int size;
+	int i;
+	unsigned char escFlag= 0;
+	unsigned char inBuf[MAX_INBUF_SIZE];
+    int Idx=0;    
+	
+     printf("lcm-ap: Start Panel-AP \n");
+	lcm_sw_init();
+	if(lcm_open() < 0) {
+		printf("lcm-ap:  Can not open device driver\n");
+		exit(1);	
+	}
+
+	//set_timer_vector();	// temp removed
+  	if(stdin_init(fileno(stdin)) < 0)
+		printf("lcm-ap: stdin set non-blocking err\n");
+
+     Mode= 0;
+     printf("lcm-ap: lcm-net serial port initialized OK\n");
+     send_cmd_frame(RESET);
+
+	quit= 0;
+	length= 0;
+
+	while(!quit) {
+		/* The followings are the Serial port testing code */
+        if (wait_flag==FALSE) { 
+			// datafound= get_char(&c);
+			datafound= get_charString(inBuf);
+			wait_flag = TRUE;      /* wait for new input */
+			//put_char(c);
+			inBuf[datafound]= '\0';
+
+			i= 0;
+			while(datafound-- > 0) {
+				c= inBuf[i++];
+ 
+				if(c == ESC ) {   						// Encounter successive ESC code
+					if(escFlag) {
+						escFlag= 0;
+						dataframe[length++]= c;
+					}
+					else
+					 escFlag= 1;
+					continue;
+				}
+				if(escFlag) {
+					escFlag= 0;
+					dataframe[length++]= c;
+					continue;
+				}
+			
+			    if(c == FRAME_MASK) {
+				    if(length > 0) {
+				        //printf("\n");
+				        if(length == 1)
+					     do_cmd_action(dataframe[0]);
+				        else
+				         do_frame_analysis(dataframe, length);
+				        length= 0;
+				    }
+			     }
+			    else
+					dataframe[length++]= c;
+    		        //continue;
+			} // data found
+		} // if wait_flag
+
+      ret=stdin_read(&c, fileno(stdin));
+
+      if(ret > 0) {
+         switch(c) {
+		  case 'q':
+               send_cmd_frame(DISCONNECT);
+			     Mode= 0;
+			     quit= 1;
+	    		break;
+         case 0x0A:      // return code
+			break;
+         case 'c': 
+            send_cmd_frame(CONNECT);
+		      Mode= 1;
+            break;
+         case 'd':
+               if(Mode == 0x02) {
+                    send_cmd_frame(DISCONNECT);
+				Mode= 0;
+			}
+			else
+				printf("Can not disconnect\n");
+            break;
+         case 'h':
+             lcm_clear();
+             break;
+         case 'r':
+             lcm_return_home();
+             break;
+         case 'L':
+             lcm_move_line2();
+               break;
+         case '1':
+              lcm_print_msg1((unsigned char *)"1-1234567890ABCDEFGH");
+//              lcm_print_msg1((unsigned char *)"1-12345678");
+              break;
+         case '2':
+               lcm_print_msg2((unsigned char *)"2-1234567890abcdefg");
+              break;
+         case 'b':
+               lcm_backlight(1);   // backlight on
+               break;
+         case 'f':
+               lcm_backlight(0);   // backlight off
+               break;
+         case '3':
+               lcm_cursor_shift_left(5);
+               break;
+         case '4':
+               lcm_cursor_shift_right(5);
+               break;
+         case '5':
+               lcm_display_shift_left(5);
+               break;
+         case '6':
+               lcm_display_shift_right(5);
+               break;
+         case '7':
+               lcm_cursor_on();
+               break;
+         case '8':
+               lcm_cursor_off();
+               break;
+         case '9':
+               lcm_cursor_blink();
+               break;
+         case '0':
+               lcm_display_off();
+               break;
+         case 'p':
+               lcm_display_on();
+               break;
+         default:
+		    put_char(c);
+            break;
+         }
+      }  // endif
+	}	// while loop
+   lcm_close();
+
+	return 0;
+}
+
+
+

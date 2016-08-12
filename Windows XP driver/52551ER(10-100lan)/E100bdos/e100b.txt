@@ -1,0 +1,96 @@
+Intel (R) 82559ER/82551ER Fast Ethernet Controller Sample Drivers & Tools
+
+====================================================================
+
+DISCLAIMER
+----------
+
+This file as well as the software described in it is
+furnished under license and may only be used or copied in accordance 
+with the terms of the license. The information in this manual is furnished 
+for informational use only, is subject to change without notice, and should 
+not be construed as a commitment by Intel Corporation. Intel Corporation 
+assumes no responsibility or liability for any errors or inaccuracies that 
+may appear in this document or any software that may be provided in association 
+with this document. 
+Except as permitted by such license, no part of this document may be reproduced, 
+stored in a retrieval system, or transmitted in any form or by any means without 
+the express written consent of Intel Corporation. 
+
+
+Information in this document is provided in connection with Intel 
+products. No license, express or implied, by estoppel or otherwise,
+to any intellectual property rights is granted by this document.
+Except as provided in Intel's Terms and Conditions of Sale for such
+products, Intel assumes no liability whatsoever, and Intel
+disclaims any express or implied warranty, relating to sale and/or
+use of Intel products including liability or warranties relating to
+fitness for a particular purpose, merchantability, or infringement
+of any patent, copyright or other intellectual property right.
+Intel products are not intended for use in medical, life saving, or
+life sustaining applications.
+
+Intel assumes no responsibility for errors or omissions in this
+document or related software, nor does Intel make any commitment
+to update the information contained herein. The described software
+is supplied "as is" without warranty and may not be fully
+functional.
+
+Copyright (c) Intel Corporation, 2002. All rights reserved.
+
+* Third-party brands and names are the property of their respective
+owners.
+
+====================================================================
+
+INTRODUCTION
+------------
+
+The 82559ER/82551ER Fast Ethernet Controller is intended for embedded
+designs. It is based on the GD82559 Fast Ethernet Controller that
+has been extensively deployed in server, desktop, and mobile PCs.
+The 82559ER/82551ER device is most suitable for applications that do not
+require the advanced manageability features of the GD82559 as well
+as WHQL certification.
+
+The 82559ER/82551ER is a PCI device that consists of a 10BASE-T/
+100BASE-TX Transceiver and an IEEE 802.3 Media Access Controller
+integrated onto a single piece of silicon.  It is offered in a space-
+saving thin BGA package measuring 15mm x 15mm.
+
+FOR MORE INFORMATION
+--------------------
+
+Intel expects to update these drivers and tools from time to time.
+For the latest information and driver files for the 82559ER/82551ER Fast 
+Ethernet Controller use the Intel Developer Web Site.  Intel's Developer 
+Web Site at http://developer.intel.com is the preferred information source 
+for all Intel embedded application products.
+
+CONTENTS OF THIS IMAGE
+-------------------
+
+
+
+E100B.DOS          NDIS2 Driver for 82559ER/82551ER
+E100BEDS.NIF       Extended DOS NIF File
+PROTOCOL.INI       NDIS2 entries for main protocol.ini file
+E100B.TXT          This file
+
+
+EVALUATION NOTES
+----------------
+
+The 82559ER/82551ER Fast Ethernet Controller was evaluated for
+installation, functionality and stress under the following 
+conditions:
+
+NDIS2
+
+System Details
+* Operating System: DOS 6.22
+* Adapter: 82559ER/82551ER A2 Stepping
+* NDIS2 Driver: 4.11
+* Networking Protocol: TCP/IP
+
+

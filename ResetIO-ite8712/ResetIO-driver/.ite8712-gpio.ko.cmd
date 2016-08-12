@@ -1,0 +1,1 @@
+cmd_/home/My_project/oak20x0/gpio-it8712/gpio-driver/ite8712-gpio.ko := ld -m elf_i386 -r -m elf_i386   -o /home/My_project/oak20x0/gpio-it8712/gpio-driver/ite8712-gpio.ko /home/My_project/oak20x0/gpio-it8712/gpio-driver/ite8712-gpio.o /home/My_project/oak20x0/gpio-it8712/gpio-driver/ite8712-gpio.mod.o

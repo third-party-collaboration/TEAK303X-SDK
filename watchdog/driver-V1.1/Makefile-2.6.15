@@ -1,0 +1,8 @@
+obj-m += ite8712-watchdog.o
+
+all: ${OBJS}
+	make -C /lib/modules/2.6.15/build M=$(PWD) modules
+
+clean:
+	make -C /lib/modules/2.6.15/build M=$(PWD) clean
+	
