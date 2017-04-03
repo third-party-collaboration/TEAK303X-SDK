@@ -571,7 +571,7 @@ void lcm_display_off(void)
 #define testINDEX 22
 unsigned char testPattern[26]="hrstrh12bfb33445566789";
 /* Start the interrupt-driven serial I/O */
-main(void){
+int main(void){
 	unsigned char c;
 	int  datafound=0;
 	int  length, ret;
